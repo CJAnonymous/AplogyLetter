@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>For You</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================
+     EDIT THESE TO CUSTOMIZE
+     ============================================ */
+  :root{
+    --password: "gwapo"; /* not used directly, see JS PASSWORD constant below */
+    --bg-1:#fdf1f0;
+    --bg-2:#f6dfe6;
+    --envelope:#fffaf4;
+    --envelope-shadow:#e8c9c0;
+    --accent:#c9647f;
+    --accent-dark:#8a3d54;
+    --ink:#5a3a42;
+    --paper:#fffdf8;
+    --paper-line:#f1ded9;
+    --gold:#d9a86c;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100vh;
+    font-family:'Poppins', sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 20% 20%, var(--bg-2), transparent 55%),
+      radial-gradient(circle at 80% 75%, var(--bg-2), transparent 55%),
+      var(--bg-1);
+    overflow-x:hidden;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .stage{
+  position:relative;
+  width:100%;
+  max-width:480px;
+  display:grid;
+  place-items:center;
+  min-height:70vh;
+}
+
+
+
+  /* -------------------- floating petals -------------------- */
+  .petal{
+    position:fixed;
+    top:-40px;
+    font-size:18px;
+    opacity:0.6;
+    pointer-events:none;
+    animation:fall linear infinite;
+    color:var(--accent);
+    z-index:1;
+  }
+  @keyframes fall{
+    to{ transform:translateY(110vh) rotate(360deg); opacity:0; }
+  }
+
+  /* -------------------- lock screen -------------------- */
+  .lock-screen{
+    position:relative;
+    z-index:2;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:18px;
+    transition:opacity .5s ease, transform .5s ease;
+  }
+
+  .lock-screen.hidden{
+    opacity:0;
+    transform:scale(.92);
+    pointer-events:none;
+    position:absolute;
+  }
+
+  .lock-icon{
+    width:56px;
+    height:56px;
+    color:var(--accent);
+  }
+
+  .lock-title{
+    font-family:'Caveat', cursive;
+    font-size:2.4rem;
+    color:var(--accent-dark);
+    margin:0;
+    line-height:1;
+  }
+
+  .lock-sub{
+    font-size:.85rem;
+    color:var(--ink);
+    opacity:.65;
+    margin:0 0 6px;
+    max-width:260px;
+  }
+
+  .pass-form{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    max-width:260px;
+  }
+
+  #password-input{
+    width:100%;
+    padding:12px 16px;
+    border-radius:999px;
+    border:1.5px solid var(--envelope-shadow);
+    background:var(--envelope);
+    text-align:center;
+    font-family:'Poppins', sans-serif;
+    font-size:.95rem;
+    color:var(--ink);
+    letter-spacing:.5px;
+    outline:none;
+    transition:border-color .2s ease, transform .12s ease;
+  }
+  #password-input:focus{
+    border-color:var(--accent);
+  }
+  #password-input.shake{
+    animation:shake .4s ease;
+    border-color:#c9647f;
+  }
+  @keyframes shake{
+    20%{ transform:translateX(-8px); }
+    40%{ transform:translateX(8px); }
+    60%{ transform:translateX(-6px); }
+    80%{ transform:translateX(6px); }
+    100%{ transform:translateX(0); }
+  }
+
+  .unlock-btn{
+    padding:11px 30px;
+    border-radius:999px;
+    border:none;
+    background:var(--accent);
+    color:#fff;
+    font-family:'Poppins', sans-serif;
+    font-size:.85rem;
+    font-weight:500;
+    letter-spacing:.3px;
+    cursor:pointer;
+    transition:background .2s ease, transform .12s ease;
+  }
+  .unlock-btn:hover{ background:var(--accent-dark); }
+  .unlock-btn:active{ transform:scale(.96); }
+
+  .hint{
+    font-size:.75rem;
+    color:var(--ink);
+    opacity:.5;
+    margin-top:2px;
+  }
+
+  .error-msg{
+    font-size:.78rem;
+    color:#b23a53;
+    min-height:1em;
+    margin:0;
+  }
+
+  /* -------------------- envelope scene -------------------- */
+  .envelope-scene{
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:22px;
+    opacity:0;
+    transform:scale(.9);
+    transition:opacity .5s ease .1s, transform .5s ease .1s;
+    width:100%;
+  }
+  .envelope-scene.visible{
+    opacity:1;
+    transform:scale(1);
+  }
+
+  .prompt-text{
+    font-family:'Caveat', cursive;
+    font-size:1.6rem;
+    color:var(--accent-dark);
+    text-align:center;
+    margin:0;
+  }
+
+  .envelope-wrap{
+    position:relative;
+    width:260px;
+    height:170px;
+    cursor:pointer;
+    perspective:1000px;
+  }
+
+  .envelope-wrap.opened{ cursor:default; }
+
+  .envelope-body{
+    position:absolute;
+    inset:0;
+    background:var(--envelope);
+    border-radius:8px;
+    box-shadow:0 18px 40px -12px rgba(138,61,84,.35);
+    overflow:visible;
+  }
+
+  /* bottom pocket triangle shading */
+  .envelope-pocket{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:100%;
+    background:linear-gradient(135deg, transparent 49.4%, var(--envelope-shadow) 50%),
+               linear-gradient(-135deg, transparent 49.4%, var(--envelope-shadow) 50%);
+    background-position: top left, top right;
+    background-size:50% 100%;
+    background-repeat:no-repeat;
+    border-radius:8px;
+    pointer-events:none;
+  }
+
+  .envelope-flap{
+    position:absolute;
+    top:0; left:0; right:0;
+    height:50%;
+    background:linear-gradient(135deg, #ffe8ee, var(--envelope));
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin:top center;
+    transform-style:preserve-3d;
+    transition:transform .7s cubic-bezier(.6,.1,.25,1);
+    box-shadow:0 2px 8px rgba(138,61,84,.15);
+    z-index:5;
+  }
+  .envelope-wrap.opened .envelope-flap{
+    transform:rotateX(180deg);
+    z-index:1;
+  }
+
+  .wax-seal{
+    position:absolute;
+    top:38%;
+    left:50%;
+    width:38px;
+    height:38px;
+    background:radial-gradient(circle at 35% 30%, #e07a94, var(--accent-dark));
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-family:'Caveat', cursive;
+    font-size:1.2rem;
+    box-shadow:0 3px 6px rgba(0,0,0,.25);
+    z-index:6;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .envelope-wrap.opened .wax-seal{
+    opacity:0;
+    transform:translate(-50%,-50%) scale(.4);
+  }
+
+  .letter-paper{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:10%;
+    height:80%;
+    background:var(--paper);
+    border-radius:4px;
+    box-shadow:0 6px 18px rgba(138,61,84,.18);
+    transform:translateY(0) scale(.98);
+    transition:transform .8s cubic-bezier(.34,1.56,.64,1) .35s;
+    z-index:3;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding-top:14px;
+  }
+  .letter-paper::before{
+    content:"♡";
+    color:var(--accent);
+    opacity:.5;
+    font-size:1rem;
+  }
+  .envelope-wrap.opened .letter-paper{
+    transform:translateY(-150px) scale(1);
+  }
+
+  .tap-label{
+    font-size:.72rem;
+    color:var(--ink);
+    opacity:.5;
+    text-align:center;
+    margin-top:2px;
+    letter-spacing:.3px;
+  }
+
+  /* -------------------- full letter modal -------------------- */
+  .letter-modal{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:rgba(90,58,66,0);
+    z-index:10;
+    pointer-events:none;
+    transition:background .4s ease;
+  }
+  .letter-modal.show{
+    background:rgba(90,58,66,.35);
+    pointer-events:auto;
+  }
+
+  .letter-card{
+    position:relative;
+    width:100%;
+    max-width:460px;
+    max-height:82vh;
+    overflow-y:auto;
+    background:var(--paper);
+    border-radius:14px;
+    padding:38px 32px 32px;
+    box-shadow:0 30px 60px -15px rgba(90,58,66,.5);
+    transform:translateY(40px) scale(.9) rotate(-1deg);
+    opacity:0;
+    transition:transform .55s cubic-bezier(.34,1.56,.64,1), opacity .4s ease;
+    background-image: repeating-linear-gradient(var(--paper) 0 34px, var(--paper-line) 34px 35px);
+    background-position: 0 60px;
+  }
+  .letter-modal.show .letter-card{
+    transform:translateY(0) scale(1) rotate(0deg);
+    opacity:1;
+  }
+
+  .letter-close{
+    position:absolute;
+    top:14px;
+    right:16px;
+    border:none;
+    background:none;
+    color:var(--ink);
+    opacity:.45;
+    font-size:1.1rem;
+    cursor:pointer;
+    line-height:1;
+    padding:4px;
+  }
+  .letter-close:hover{ opacity:.8; }
+
+  .letter-heading{
+    font-family:'Caveat', cursive;
+    color:var(--accent-dark);
+    font-size:2rem;
+    margin:0 0 6px;
+    text-align:center;
+  }
+
+  .letter-body{
+    font-family:'Caveat', cursive;
+    font-size:1.35rem;
+    line-height:1.75rem;
+    color:var(--ink);
+    white-space:pre-line;
+    text-align:left;
+  }
+
+  .letter-signoff{
+    font-family:'Caveat', cursive;
+    font-size:1.5rem;
+    color:var(--accent-dark);
+    text-align:right;
+    margin-top:14px;
+  }
+
+  .hearts-burst{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:11;
+    overflow:hidden;
+  }
+  .heart-bit{
+    position:absolute;
+    bottom:-20px;
+    font-size:20px;
+    color:var(--accent);
+    animation:rise 2.4s ease-in forwards;
+  }
+  @keyframes rise{
+    to{ transform:translateY(-100vh) rotate(30deg); opacity:0; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+  
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- ===================== LOCK SCREEN ===================== -->
+  <div class="lock-screen" id="lockScreen">
+    <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="4" y="10.5" width="16" height="10" rx="2.2"/>
+      <path d="M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3"/>
+      <circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/>
+    </svg>
+    <h1 class="lock-title">This letter is just for you only my Julia</h1>
+    <p class="lock-sub">There's a little something waiting on the other side. You'll know the word to get in.</p>
+
+    <div class="pass-form">
+      <input
+        type="password"
+        id="password-input"
+        placeholder="type the password"
+        autocomplete="off"
+      />
+      <button class="unlock-btn" id="unlockBtn">Open</button>
+      <p class="error-msg" id="errorMsg"></p>
+      <!-- Change the hint text below, or remove it entirely -->
+      <p class="hint">hint: what you call me when you're being sweet</p>
+    </div>
+  </div>
+
+  <!-- ===================== ENVELOPE SCENE ===================== -->
+  <div class="envelope-scene" id="envelopeScene">
+    <p class="prompt-text">tap the envelope, {name}</p>
+
+    <div class="envelope-wrap" id="envelopeWrap">
+      <div class="envelope-body">
+        <div class="envelope-pocket"></div>
+        <div class="letter-paper"></div>
+        <div class="envelope-flap"></div>
+        <div class="wax-seal">S</div>
+      </div>
+    </div>
+    <p class="tap-label">( go on, open it )</p>
+  </div>
+
+</div>
+
+<!-- ===================== FULL LETTER MODAL ===================== -->
+<div class="letter-modal" id="letterModal">
+  <div class="letter-card">
+    <button class="letter-close" id="closeLetter">✕</button>
+    <h2 class="letter-heading">I'm sorry.</h2>
+    <div class="letter-body" id="letterBody">Hi gwapa,
+
+I know sorry is just a word, but I mean every letter of it. I messed up, and you didn't deserve that.
+
+You mean more to me than I probably show, and I hate that I made you feel otherwise. I'm working on being better — not because I have to, but because you're worth it.
+
+Can we start today over?</div>
+    <p class="letter-signoff">— Christian Tubil</p>
+  </div>
+</div>
+
+<div class="hearts-burst" id="heartsBurst"></div>
+
+<script>
+  /* ============================================
+     EDIT THESE TWO LINES TO CUSTOMIZE
+     ============================================ */
+  const PASSWORD = "gwapo";      
+  const HER_NAME  = "Julia";     
+
+  document.querySelectorAll('.prompt-text').forEach(el=>{
+    el.textContent = el.textContent.replace('{name}', HER_NAME);
+  });
+
+  const lockScreen   = document.getElementById('lockScreen');
+  const envelopeScene= document.getElementById('envelopeScene');
+  const input        = document.getElementById('password-input');
+  const unlockBtn     = document.getElementById('unlockBtn');
+  const errorMsg      = document.getElementById('errorMsg');
+  const envelopeWrap  = document.getElementById('envelopeWrap');
+  const letterModal   = document.getElementById('letterModal');
+  const closeLetter   = document.getElementById('closeLetter');
+  const heartsBurst   = document.getElementById('heartsBurst');
+
+  function tryUnlock(){
+    const val = input.value.trim().toLowerCase();
+    if(val === PASSWORD.toLowerCase() && val.length){
+      lockScreen.classList.add('hidden');
+      envelopeScene.classList.add('visible');
+      errorMsg.textContent = '';
+    } else {
+      errorMsg.textContent = "that's not quite it — try again";
+      input.classList.remove('shake');
+      void input.offsetWidth; /* restart animation */
+      input.classList.add('shake');
+    }
+  }
+
+  unlockBtn.addEventListener('click', tryUnlock);
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') tryUnlock();
+  });
+
+  envelopeWrap.addEventListener('click', ()=>{
+    if(envelopeWrap.classList.contains('opened')) return;
+    envelopeWrap.classList.add('opened');
+    setTimeout(()=>{
+      letterModal.classList.add('show');
+      spawnHearts();
+    }, 650);
+  });
+
+  closeLetter.addEventListener('click', ()=>{
+    letterModal.classList.remove('show');
+  });
+  letterModal.addEventListener('click', (e)=>{
+    if(e.target === letterModal) letterModal.classList.remove('show');
+  });
+
+  function spawnHearts(){
+    const symbols = ['♡','❤','♥'];
+    for(let i=0;i<16;i++){
+      const h = document.createElement('span');
+      h.className = 'heart-bit';
+      h.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+      h.style.left = Math.random()*100 + 'vw';
+      h.style.animationDelay = (Math.random()*0.6) + 's';
+      h.style.fontSize = (14 + Math.random()*16) + 'px';
+      heartsBurst.appendChild(h);
+      setTimeout(()=>h.remove(), 3200);
+    }
+  }
+
+  /* gentle floating petals in background */
+  function spawnPetal(){
+    const p = document.createElement('span');
+    p.className = 'petal';
+    p.textContent = ['♡','✿','❀'][Math.floor(Math.random()*3)];
+    p.style.left = Math.random()*100 + 'vw';
+    p.style.animationDuration = (6 + Math.random()*6) + 's';
+    p.style.fontSize = (12 + Math.random()*10) + 'px';
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 13000);
+  }
+  setInterval(spawnPetal, 900);
+  spawnPetal();
+</script>
+
+</body>
+</html>
